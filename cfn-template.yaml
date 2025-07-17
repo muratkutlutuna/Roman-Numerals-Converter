@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Roman Numerals Converter App on EC2
+
+Parameters:
+  KeyPairName:
+    Description: EC2 KeyPair to SSH
+    Type: AWS::EC2::KeyPair::KeyName
+
+Resources:
+  MyEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      KeyName: !Ref KeyPairName
+      ImageId: !Sub '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}'  # Amazon Linux 2023 - us-east-1 için örnek
+      SecurityGroups:
+        - !Ref InstanceSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Web Server of !Ref AWS::StackName
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y python3 git
+          pip3 install flask
+          cd /home/ec2-user
+          git clone https://github.com/<yourusername>/<your-repo>.git
+          cd 001-roman-numerals-converter
+          python3 app.py &
+
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH and HTTP access
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+Outputs:
+  WebsiteURL:
+    Description: Application URL
+    Value: !Sub "http://${MyEC2Instance.PublicDnsName}"
